@@ -1,6 +1,7 @@
 <?php
 $list = new FileSetList();
-$sets = $list->get(100);
+$list->sortBy('fsID');
+$sets = $list->get();
 foreach ($sets as $set){
 	/* @var $set FileSet */
 	$item = array('ID'=>$set->getFileSetID(),'Name'=>$set->getFileSetName());
@@ -11,7 +12,9 @@ foreach ($sets as $set){
 		$f = array(
 			'URL'=>$file->getVersion()->getURL(),
 			'Name'=>$file->getVersion()->getTitle(),
-			'Desc' =>$file->getVersion()->getDescription()
+			'Desc' =>$file->getVersion()->getDescription(),
+			'Prefix' => $file->getVersion()->getPrefix(),
+			'Filename' =>$file->getVersion()->getFileName()
 		);
 		$setfiles[] = $f;
 	}

@@ -27,6 +27,7 @@ use Controller;
 use User;
 use Database;
 use Concrete\Core\File\Importer;
+use Concrete\Core\File\File;
 use Concrete\Core\File\Set\Set as Foo;
 use Concrete\Core\Entity\File\Version;
 use Concrete\Core\File\Filesystem;
@@ -41,6 +42,7 @@ set_time_limit(0);
 class Fileset extends Controller {
 	public function view () {
 		$db = Database::connection();
+		/* @var $db \Concrete\Core\Database\Connection\Connection */
 		$json = json_decode(file_get_contents('filesets.json'), true);
 
 		$offset = $this->request->get('offset') ? $this->request->get('offset') : 0;
@@ -75,27 +77,59 @@ class Fileset extends Controller {
 
 			if (is_array($item['Files'])) {
 				foreach ($item['Files'] as $file) {
-					$filename = basename($file['URL']);
-					file_put_contents($filename, file_get_contents($file['URL']));
-
-					$imp = new Importer();
-
-					$fv = $imp->import(basename($file['URL']), false, $folder);
-					/* @var $fv Version */
-
-					$imp = null;
-
-					if ($filename != $file['Name'])
-						$fv->updateTitle($file['Name']);
-
-					if ($file['Desc'])
-						$fv->updateDescription($file['Desc']);
-
-					$set->addFileToSet($fv);
 
 					$fv = null;
 
-					unlink($filename);
+					$prefix = (int) $file['Prefix'];
+					if (! $prefix) {
+						$prefix = null;
+					} else {
+						$path  = [
+							DIRNAME_APPLICATION,
+							'files',
+							substr($file['Prefix'],0,4),
+							substr($file['Prefix'],4,4),
+							substr($file['Prefix'],8,4),
+							$file['Filename']
+						];
+
+						$relPath = implode(DIRECTORY_SEPARATOR, $path);
+
+						if (is_file($relPath)) {
+							// File exists so get its id
+							$sql = 'SELECT fID FROM FileVersions WHERE fvFilename=? AND fvPrefix=?';
+							$row = $db->fetchAssoc($sql, [$file['Filename'], $prefix]);
+							if ($row){
+								$f = File::getByID($row['fID']);
+								$fv = $f->getVersion();
+							}
+						}
+					}
+
+					if ($fv !== null) { // Got this one already, just add it to the set
+						$set->addFileToSet($fv);
+
+					} else {
+						$filename = basename($file['URL']);
+						file_put_contents($filename, file_get_contents($file['URL']));
+
+						$imp = new Importer();
+
+						$fv = $imp->import(basename($file['URL']), false, $folder, $prefix);
+						/* @var $fv Version */
+
+						$imp = null;
+
+						if ($filename != $file['Name'])
+							$fv->updateTitle($file['Name']);
+
+						if ($file['Desc'])
+							$fv->updateDescription($file['Desc']);
+
+						$set->addFileToSet($fv);
+
+						unlink($filename);
+					}
 				}
 			}
 
