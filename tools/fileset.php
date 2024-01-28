@@ -25,5 +25,6 @@ foreach ($sets as $set){
 }
 
 header('Content-type: application/json;charset="utf8"');
+header('Content-Disposition: attachment; filename="filesets.csv"');
 echo json_encode($out);
 die();
